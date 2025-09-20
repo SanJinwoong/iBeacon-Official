@@ -1,0 +1,522 @@
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:device_info_plus/device_info_plus.dart';
+import 'models/beacon_models.dart';
+import 'services/ble_scanner.dart';
+import 'services/legacy_ble_scanner.dart';
+import 'wid        ),
+        icon: Icon(_scanning ? Icons.pause : Icons.play_arrow, size: 18),
+        label: Text(
+          _scanning ? 'Pausar' : 'Escanear',
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
+      ),
+    );
+  }
+
+  Widget _legacyScanButton() {
+    return Container(
+      margin: const EdgeInsets.all(8),
+      child: ElevatedButton.icon(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: _legacyScanning
+              ? const Color(0xFFE53E3E)
+              : const Color(0xFF9D4EDD),
+          foregroundColor: Colors.white,
+          minimumSize: const Size(100, 40),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          elevation: 2,
+        ),
+        onPressed: () async {
+          setState(() {
+            _legacyScanning = !_legacyScanning;
+          });
+          
+          try {
+            if (_legacyScanning) {
+              print('🚀 Starting Legacy BLE scan...');
+              _legacyScanner.setOnDeviceFound((device) {
+                print('🔍 Legacy device found: ${device['name']} (${device['address']})');
+                // Here we could add the device to a special list or highlight it
+              });
+              await _legacyScanner.startScan();
+            } else {
+              print('🛑 Stopping Legacy BLE scan...');
+              await _legacyScanner.stopScan();
+            }
+          } catch (e) {
+            print('❌ Error with legacy scan: $e');
+            setState(() {
+              _legacyScanning = false;
+            });
+          }
+        },
+        icon: Icon(_legacyScanning ? Icons.radar : Icons.wifi_find, size: 16),
+        label: Text(
+          _legacyScanning ? 'Legacy' : 'Legacy',
+          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
+        ),
+      ),
+    );
+  }on_card_new.dart';
+import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
+
+void main() {
+  runApp(const BeaconApp());
+}
+
+class BeaconApp extends StatefulWidget {
+  final IBeaconScanner? scanner;
+  const BeaconApp({super.key, this.scanner});
+  @override
+  State<BeaconApp> createState() => _BeaconAppState();
+}
+
+class _BeaconAppState extends State<BeaconApp> {
+  late final IBeaconScanner _scanner;
+  FlutterReactiveBle? _ble; // solo si necesitamos uno real
+  bool _permissionsOk = false;
+  String _filter = '';
+  final TextEditingController _controller = TextEditingController();
+  BeaconWhitelist _whitelist = const BeaconWhitelist({
+    // Añade aquí UUIDs propios (sin guiones en mayúsculas) para marcar VERIFICADO
+    // Ejemplo: 'E2C56DB5DFFB48D2B060D0F5A71096E0'
+  });
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.scanner != null) {
+      _scanner = widget.scanner!;
+    } else {
+      _ble = FlutterReactiveBle();
+      _scanner = BleScannerService(_ble!);
+    }
+    _requestPermissions();
+  }
+
+  Future<void> _requestPermissions() async {
+    // Android 12+ requiere permisos granulares de BLUETOOTH_* para escanear.
+    // Localización (fine) sigue siendo necesaria en Android <12 para obtener resultados BLE.
+    // En algunos dispositivos Android 12+ también necesitamos location para manufacturer data.
+    final List<Permission> needed = [];
+    if (Platform.isAndroid) {
+      final sdkInt = await _androidSdkInt();
+      // Siempre pedimos ambos tipos de permisos para máxima compatibilidad
+      needed.addAll([
+        Permission.bluetoothScan,
+        Permission.bluetoothConnect,
+        Permission.locationWhenInUse,
+      ]);
+
+      // Para versiones anteriores a Android 12, también necesitamos estos
+      if (sdkInt < 31) {
+        needed.add(Permission.bluetooth);
+      }
+    }
+    final statuses = await needed.request();
+    final allGranted = statuses.values.every((s) => s.isGranted);
+    setState(() => _permissionsOk = allGranted);
+    if (allGranted) {
+      _scanner.setWhitelist(_whitelist);
+      _scanner.start(filterUuid: _filter);
+    }
+  }
+
+  Future<int> _androidSdkInt() async {
+    if (!Platform.isAndroid) return 0;
+    final info = await DeviceInfoPlugin().androidInfo;
+    return info.version.sdkInt;
+  }
+
+  @override
+  void dispose() {
+    _scanner.dispose();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'BLE Beacon Scanner',
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF2196F3)),
+        scaffoldBackgroundColor: const Color(0xFFF8FAFC),
+        useMaterial3: true,
+        fontFamily: 'Roboto',
+      ),
+      home: !_permissionsOk
+          ? _PermissionsScreen(onRetry: _requestPermissions)
+          : _ScannerScreen(
+              scanner: _scanner,
+              devicesStream: _scanner.devicesStream,
+              onFilter: (f) {
+                setState(() => _filter = f);
+                _scanner.start(filterUuid: f);
+              },
+              whitelist: _whitelist,
+              onAddWhitelist: (uuid) {
+                setState(() => _whitelist = _whitelist.add(uuid));
+                _scanner.setWhitelist(_whitelist);
+              },
+            ),
+    );
+  }
+}
+
+class _PermissionsScreen extends StatelessWidget {
+  final VoidCallback onRetry;
+  const _PermissionsScreen({required this.onRetry});
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Permisos necesarios')),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Necesitamos permisos de Bluetooth (y localización en Android <12) para escanear beacons.',
+            ),
+            const SizedBox(height: 12),
+            ElevatedButton(
+              onPressed: onRetry,
+              child: const Text('Conceder / Reintentar'),
+            ),
+            TextButton(
+              onPressed: openAppSettings,
+              child: const Text('Abrir ajustes'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ScannerScreen extends StatefulWidget {
+  final Stream<List<BeaconDevice>> devicesStream;
+  final void Function(String) onFilter;
+  final BeaconWhitelist whitelist;
+  final void Function(String uuid) onAddWhitelist;
+  final IBeaconScanner scanner;
+  const _ScannerScreen({
+    required this.devicesStream,
+    required this.onFilter,
+    required this.whitelist,
+    required this.onAddWhitelist,
+    required this.scanner,
+  });
+  @override
+  State<_ScannerScreen> createState() => _ScannerScreenState();
+}
+
+class _ScannerScreenState extends State<_ScannerScreen> {
+  final TextEditingController _filterCtrl = TextEditingController();
+  final LegacyBleScanner _legacyScanner = LegacyBleScanner();
+  bool _legacyScanning = false;
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          'Beacons Cercanos',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
+        backgroundColor: const Color(0xFF2196F3),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        actions: [
+          IconButton(
+            tooltip: 'Re-solicitar permisos',
+            onPressed: () => _confirmPermissions(context),
+            icon: const Icon(Icons.settings_bluetooth),
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.1),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _filterCtrl,
+                          decoration: const InputDecoration(
+                            labelText: 'Filtrar por UUID / Namespace / URL',
+                            prefixIcon: Icon(
+                              Icons.search,
+                              color: Color(0xFF2196F3),
+                            ),
+                            border: InputBorder.none,
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 16,
+                            ),
+                          ),
+                          onSubmitted: widget.onFilter,
+                        ),
+                      ),
+                      Container(
+                        height: 48,
+                        width: 1,
+                        color: Colors.grey.shade300,
+                      ),
+                      _scanToggleButton(),
+                      const SizedBox(width: 8),
+                      _legacyScanButton(),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+            ),
+          ),
+          Expanded(
+            child: StreamBuilder<List<BeaconDevice>>(
+              stream: widget.devicesStream,
+              builder: (c, snap) {
+                final list = snap.data ?? [];
+                if (list.isEmpty) {
+                  return const Center(child: Text('Sin dispositivos aún'));
+                }
+                return RefreshIndicator(
+                  onRefresh: () async {
+                    widget.scanner.start(filterUuid: _filterCtrl.text.trim());
+                  },
+                  child: ListView.builder(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    itemCount: list.length,
+                    itemBuilder: (c, i) {
+                      final d = list[i];
+                      return BeaconCard(device: d, onTap: () => _openDetail(d));
+                    },
+                  ),
+                );
+              },
+            ),
+          ),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: _exportCsv,
+                  icon: const Icon(Icons.file_download),
+                  label: const Text('Export CSV'),
+                ),
+              ),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: _showAddWhitelist,
+                  icon: const Icon(Icons.verified),
+                  label: const Text('Añadir UUID Verificado'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  bool _scanning = true;
+
+  Widget _scanToggleButton() {
+    return Container(
+      margin: const EdgeInsets.all(8),
+      child: ElevatedButton.icon(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: _scanning
+              ? const Color(0xFFE53E3E)
+              : const Color(0xFF38A169),
+          foregroundColor: Colors.white,
+          minimumSize: const Size(100, 40),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          elevation: 2,
+        ),
+        onPressed: () {
+          setState(() {
+            _scanning = !_scanning;
+            if (_scanning) {
+              widget.scanner.start(filterUuid: _filterCtrl.text.trim());
+            } else {
+              widget.scanner.stop();
+            }
+          });
+        },
+        icon: Icon(_scanning ? Icons.pause : Icons.play_arrow, size: 18),
+        label: Text(
+          _scanning ? 'Pausar' : 'Escanear',
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _confirmPermissions(BuildContext context) async {
+    // Simple diálogo que explica permisos y da opción de abrir ajustes
+    if (!context.mounted) return;
+    showDialog(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text('Permisos'),
+        content: const Text(
+          'Asegúrate de haber otorgado permisos de Bluetooth y localización para el escaneo.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(c),
+            child: const Text('Cerrar'),
+          ),
+          TextButton(onPressed: openAppSettings, child: const Text('Ajustes')),
+        ],
+      ),
+    );
+  }
+
+  void _openDetail(BeaconDevice d) {
+    showModalBottomSheet(
+      context: context,
+      builder: (c) {
+        return Padding(
+          padding: const EdgeInsets.all(12),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  d.name ?? d.id,
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                Text('ID: ${d.id}'),
+                Text('Protocol: ${d.protocol}'),
+                if (d.beaconUuid != null)
+                  Text('UUID/Namespace: ${d.beaconUuid}'),
+                if (d.major != null)
+                  Text('Major: ${d.major} Minor: ${d.minor}'),
+                if (d.eddystoneInstanceId != null)
+                  Text('Instancia: ${d.eddystoneInstanceId}'),
+                if (d.url != null) Text('URL: ${d.url}'),
+                Text('RSSI: ${d.rssi}'),
+                Text('TxPower: ${d.txPower ?? '-'}'),
+                Text('Último: ${d.lastSeen}'),
+                Text('Extra: ${d.extra}'),
+                const SizedBox(height: 12),
+                if (!d.verified && d.beaconUuid != null)
+                  ElevatedButton(
+                    onPressed: () {
+                      widget.onAddWhitelist(d.beaconUuid!.replaceAll('-', ''));
+                      Navigator.pop(context);
+                    },
+                    child: const Text('Marcar confiable (whitelist)'),
+                  ),
+                if (d.verified)
+                  const Text(
+                    'Este beacon está VERIFICADO por UUID',
+                    style: TextStyle(color: Colors.green),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _exportCsv() async {
+    // Simple CSV en memoria mostrado en diálogo.
+    final list = await widget.devicesStream.first;
+    final headers = [
+      'id',
+      'name',
+      'protocol',
+      'uuid/url',
+      'major',
+      'minor',
+      'rssi',
+      'txPower',
+      'lastSeen',
+      'verified',
+    ];
+    final rows = [
+      headers,
+      ...list.map(
+        (d) => [
+          d.id,
+          d.name ?? '',
+          d.protocol.name,
+          d.beaconUuid ?? d.url ?? '',
+          d.major?.toString() ?? '',
+          d.minor?.toString() ?? '',
+          d.rssi.toString(),
+          d.txPower?.toString() ?? '',
+          d.lastSeen.toIso8601String(),
+          d.verified ? '1' : '0',
+        ],
+      ),
+    ];
+    final csvStr = rows.map((r) => r.map(_escape).join(',')).join('\n');
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text('CSV'),
+        content: SingleChildScrollView(child: Text(csvStr)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(c),
+            child: const Text('Cerrar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _escape(String v) => '"${v.replaceAll('"', '""')}"';
+
+  void _showAddWhitelist() {
+    final ctrl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text('Agregar UUID'),
+        content: TextField(
+          controller: ctrl,
+          decoration: const InputDecoration(hintText: 'UUID sin guiones'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(c),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () {
+              final uuid = ctrl.text.trim();
+              if (uuid.isNotEmpty) widget.onAddWhitelist(uuid);
+              Navigator.pop(c);
+            },
+            child: const Text('Guardar'),
+          ),
+        ],
+      ),
+    );
+  }
+}

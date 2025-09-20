@@ -1,0 +1,24 @@
+name: ibeacon
+description: "Aplicación de escaneo de beacons iBeacon y Eddystone"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_reactive_ble: ^5.4.0
+  permission_handler: ^11.3.1
+  device_info_plus: ^10.1.0
+  app_settings: ^5.1.1
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
