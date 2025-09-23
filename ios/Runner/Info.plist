@@ -2,6 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>CADisableMinimumFrameDurationOnPhone</key>
+	<true/>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
@@ -24,6 +26,8 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>UIApplicationSupportsIndirectInputEvents</key>
+	<true/>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
@@ -41,9 +45,26 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-	<key>CADisableMinimumFrameDurationOnPhone</key>
-	<true/>
-	<key>UIApplicationSupportsIndirectInputEvents</key>
-	<true/>
+	
+	<!-- Permisos de Bluetooth -->
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Esta aplicación necesita acceso al Bluetooth para detectar y conectarse con dispositivos iBeacon cercanos.</string>
+	<key>NSBluetoothPeripheralUsageDescription</key>
+	<string>Esta aplicación necesita acceso al Bluetooth para detectar dispositivos iBeacon cercanos.</string>
+	
+	<!-- Permisos de Ubicación -->
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Esta aplicación necesita acceso a la ubicación para detectar beacons iBeacon cercanos. Los beacons utilizan la ubicación para determinar la proximidad.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Esta aplicación necesita acceso a la ubicación mientras está en uso para detectar beacons iBeacon cercanos.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>Esta aplicación necesita acceso a la ubicación para detectar beacons iBeacon incluso cuando la app está en segundo plano.</string>
+	
+	<!-- Configuraciones adicionales para iOS 13+ -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>bluetooth-central</string>
+		<string>location</string>
+	</array>
 </dict>
 </plist>

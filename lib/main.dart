@@ -4,14 +4,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:device_info_plus/device_info_plus.dart';
 import 'package:app_settings/app_settings.dart';
 
 void main() {
-  runApp(MyApp());
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -19,8 +20,8 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.grey,
         useMaterial3: true,
-        scaffoldBackgroundColor: Color(0xFFF8FAFC),
-        appBarTheme: AppBarTheme(
+        scaffoldBackgroundColor: const Color(0xFFF8FAFC),
+        appBarTheme: const AppBarTheme(
           backgroundColor: Colors.white,
           foregroundColor: Color(0xFF1E293B),
           elevation: 0,
@@ -39,7 +40,7 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ),
-      home: BeaconScannerPage(),
+      home: const BeaconScannerPage(),
       debugShowCheckedModeBanner: false,
     );
   }
@@ -71,19 +72,21 @@ class SimpleBeaconDevice {
     DateTime? lastSeen,
   }) {
     return SimpleBeaconDevice(
-      deviceId: this.deviceId,
-      name: this.name,
+      deviceId: deviceId,
+      name: name,
       rssi: rssi ?? this.rssi,
       lastSeen: lastSeen ?? this.lastSeen,
-      uuid: this.uuid,
-      major: this.major,
-      minor: this.minor,
-      txPower: this.txPower,
+      uuid: uuid,
+      major: major,
+      minor: minor,
+      txPower: txPower,
     );
   }
 }
 
 class BeaconScannerPage extends StatefulWidget {
+  const BeaconScannerPage({super.key});
+
   @override
   _BeaconScannerPageState createState() => _BeaconScannerPageState();
 }
@@ -104,42 +107,74 @@ class _BeaconScannerPageState extends State<BeaconScannerPage> {
   @override
   void initState() {
     super.initState();
-    _initializePermissions();
+    // Inicializar permisos de manera no-bloqueante
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initializePermissions();
+    });
   }
 
   Future<void> _initializePermissions() async {
-    await _checkAndRequestPermissions();
-    // Verificar permisos críticos al iniciar
-    _checkCriticalPermissions();
+    try {
+      await _checkAndRequestPermissions();
+      // Verificar permisos críticos al iniciar (con delay para no bloquear UI)
+      await Future.delayed(const Duration(milliseconds: 500));
+      if (mounted) {
+        _checkCriticalPermissions();
+      }
+    } catch (e) {
+      print('Error en inicialización de permisos: $e');
+    }
   }
 
   Future<void> _checkCriticalPermissions() async {
-    final DeviceInfoPlugin deviceInfoPlugin = DeviceInfoPlugin();
-    final AndroidDeviceInfo androidInfo = await deviceInfoPlugin.androidInfo;
-    final int sdkInt = androidInfo.version.sdkInt;
+    try {
+      List<String> missingPermissions = [];
 
-    List<String> missingPermissions = [];
+      // Verificar permisos de ubicación (necesarios en todas las plataformas)
+      final locationWhenInUseStatus = await Permission.locationWhenInUse.status;
+      if (!locationWhenInUseStatus.isGranted) {
+        missingPermissions.add('Ubicación cuando la app está en uso');
+      }
 
-    if (sdkInt >= 31) {
-      // Android 12+
-      if (!await Permission.bluetoothScan.isGranted) {
-        missingPermissions.add('Escaneo Bluetooth');
-      }
-      if (!await Permission.bluetoothConnect.isGranted) {
-        missingPermissions.add('Conexión Bluetooth');
-      }
-    } else {
-      // Android < 12
-      if (!await Permission.location.isGranted) {
-        missingPermissions.add('Ubicación');
-      }
-      if (!await Permission.bluetooth.isGranted) {
-        missingPermissions.add('Bluetooth');
-      }
-    }
+      // En iOS, verificar si necesitamos ubicación siempre para background
+      if (Theme.of(context).platform == TargetPlatform.iOS) {
+        final locationAlwaysStatus = await Permission.locationAlways.status;
+        if (!locationAlwaysStatus.isGranted) {
+          missingPermissions.add('Ubicación en segundo plano (recomendado)');
+        }
 
-    if (missingPermissions.isNotEmpty) {
-      _showCriticalPermissionsDialog(missingPermissions);
+        // Para iOS, verificar permisos de Bluetooth
+        final bluetoothStatus = await Permission.bluetooth.status;
+        if (!bluetoothStatus.isGranted) {
+          missingPermissions.add('Bluetooth');
+        }
+      } else {
+        // Para Android, usar los permisos específicos
+        try {
+          final bluetoothScanStatus = await Permission.bluetoothScan.status;
+          if (!bluetoothScanStatus.isGranted) {
+            missingPermissions.add('Escaneo Bluetooth');
+          }
+
+          final bluetoothConnectStatus =
+              await Permission.bluetoothConnect.status;
+          if (!bluetoothConnectStatus.isGranted) {
+            missingPermissions.add('Conexión Bluetooth');
+          }
+        } catch (e) {
+          // Fallback para versiones anteriores de Android
+          final bluetoothStatus = await Permission.bluetooth.status;
+          if (!bluetoothStatus.isGranted) {
+            missingPermissions.add('Bluetooth');
+          }
+        }
+      }
+
+      if (missingPermissions.isNotEmpty && mounted) {
+        await _showCriticalPermissionsDialog(missingPermissions);
+      }
+    } catch (e) {
+      print('Error verificando permisos críticos: $e');
     }
   }
 
@@ -150,7 +185,7 @@ class _BeaconScannerPageState extends State<BeaconScannerPage> {
       barrierDismissible: false,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Row(
+          title: const Row(
             children: [
               Icon(Icons.warning, color: Colors.red),
               SizedBox(width: 8),
@@ -160,19 +195,20 @@ class _BeaconScannerPageState extends State<BeaconScannerPage> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
+              const Text(
                   'La aplicación necesita los siguientes permisos para funcionar:'),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
               ...missingPermissions.map(
                 (perm) => Row(
                   children: [
-                    Icon(Icons.circle, size: 6, color: Colors.red),
-                    SizedBox(width: 8),
-                    Text(perm, style: TextStyle(fontWeight: FontWeight.w500)),
+                    const Icon(Icons.circle, size: 6, color: Colors.red),
+                    const SizedBox(width: 8),
+                    Text(perm,
+                        style: const TextStyle(fontWeight: FontWeight.w500)),
                   ],
                 ),
               ),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
               Text(
                 'Sin estos permisos, no podrás escanear beacons. Ve a Configuración para habilitarlos.',
                 style: TextStyle(fontSize: 14, color: Colors.grey[600]),
@@ -182,14 +218,14 @@ class _BeaconScannerPageState extends State<BeaconScannerPage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: Text('Después'),
+              child: const Text('Después'),
             ),
             ElevatedButton(
               onPressed: () {
                 Navigator.of(context).pop();
                 AppSettings.openAppSettings();
               },
-              child: Text('Ir a Configuración'),
+              child: const Text('Ir a Configuración'),
             ),
           ],
         );
@@ -199,32 +235,99 @@ class _BeaconScannerPageState extends State<BeaconScannerPage> {
 
   Future<void> _checkAndRequestPermissions() async {
     try {
-      final DeviceInfoPlugin deviceInfoPlugin = DeviceInfoPlugin();
-      final AndroidDeviceInfo androidInfo = await deviceInfoPlugin.androidInfo;
-      final int sdkInt = androidInfo.version.sdkInt;
+      Map<Permission, PermissionStatus> statuses = {};
 
-      if (sdkInt >= 31) {
-        // Android 12+ (API 31+) - Nuevos permisos de Bluetooth
-        await [
-          Permission.bluetoothScan,
-          Permission.bluetoothConnect,
+      if (Theme.of(context).platform == TargetPlatform.iOS) {
+        // Permisos para iOS
+        statuses = await [
           Permission.locationWhenInUse,
-        ].request();
-      } else if (sdkInt >= 29) {
-        // Android 10-11 (API 29-30)
-        await [
-          Permission.location,
-          Permission.locationWhenInUse,
+          Permission.locationAlways,
+          Permission.bluetooth,
         ].request();
       } else {
-        // Android < 10 (API < 29)
-        await [
+        // Permisos para Android
+        List<Permission> androidPermissions = [
           Permission.location,
-        ].request();
+          Permission.locationWhenInUse,
+        ];
+
+        // Intentar añadir permisos específicos de Android 12+
+        try {
+          androidPermissions.addAll([
+            Permission.bluetoothScan,
+            Permission.bluetoothConnect,
+          ]);
+        } catch (e) {
+          // Fallback para versiones anteriores
+          androidPermissions.add(Permission.bluetooth);
+        }
+
+        statuses = await androidPermissions.request();
+      }
+
+      // Log del estado de los permisos para debugging
+      for (final entry in statuses.entries) {
+        print('Permiso ${entry.key}: ${entry.value}');
+
+        // Si el permiso fue denegado, mostrar información adicional
+        if (entry.value.isDenied || entry.value.isPermanentlyDenied) {
+          print('⚠️ Permiso ${entry.key} fue denegado');
+        }
+      }
+
+      // Verificar si necesitamos mostrar diálogo para ir a configuración
+      final hasPermamentlyDenied =
+          statuses.values.any((status) => status.isPermanentlyDenied);
+      if (hasPermamentlyDenied && mounted) {
+        _showGoToSettingsDialog();
       }
     } catch (e) {
       print('Error al solicitar permisos: $e');
     }
+  }
+
+  Future<void> _showGoToSettingsDialog() async {
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.settings, color: Colors.orange),
+              SizedBox(width: 8),
+              Text('Configurar Permisos'),
+            ],
+          ),
+          content: const Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Algunos permisos fueron denegados permanentemente. Para que la aplicación funcione correctamente, necesitas habilitarlos manualmente en Configuración.',
+              ),
+              SizedBox(height: 16),
+              Text(
+                'Ve a: Configuración > Privacidad y Seguridad > Ubicación/Bluetooth',
+                style: TextStyle(fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Después'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                AppSettings.openAppSettings();
+              },
+              child: const Text('Abrir Configuración'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _toggleScanning() {
@@ -285,7 +388,7 @@ class _BeaconScannerPageState extends State<BeaconScannerPage> {
     if (manufacturerData.isNotEmpty) {
       // Debug: mostrar datos raw del manufacturerData
       print(
-          '📊 Datos raw para ${deviceName}: ${manufacturerData.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ')}');
+          '📊 Datos raw para $deviceName: ${manufacturerData.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ')}');
 
       if (manufacturerData.length >= 25) {
         // Buscar el formato iBeacon en los datos
@@ -361,9 +464,9 @@ class _BeaconScannerPageState extends State<BeaconScannerPage> {
               '${macHex.substring(0, 8)}-${macHex.substring(8, 12)}-${macHex.substring(12, 16)}-${macHex.substring(16, 20)}-${macHex.substring(20, 32)}';
         }
       }
-      if (major == null) major = 100;
-      if (minor == null) minor = 200;
-      if (txPower == null) txPower = -59;
+      major ??= 100;
+      minor ??= 200;
+      txPower ??= -59;
     }
     final newDevice = SimpleBeaconDevice(
       deviceId: deviceId,
@@ -471,19 +574,19 @@ class _BeaconScannerPageState extends State<BeaconScannerPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('iBeacon Scanner'),
+        title: const Text('iBeacon Scanner'),
       ),
       body: Column(
         children: [
           // Barra de búsqueda y botón de escaneo
           Container(
-            padding: EdgeInsets.all(20),
+            padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               color: Colors.white,
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.03),
-                  offset: Offset(0, 2),
+                  offset: const Offset(0, 2),
                   blurRadius: 8,
                 ),
               ],
@@ -492,13 +595,14 @@ class _BeaconScannerPageState extends State<BeaconScannerPage> {
               children: [
                 Container(
                   decoration: BoxDecoration(
-                    color: Color(0xFFF1F5F9),
+                    color: const Color(0xFFF1F5F9),
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Color(0xFFE2E8F0), width: 1),
+                    border:
+                        Border.all(color: const Color(0xFFE2E8F0), width: 1),
                   ),
                   child: TextField(
                     controller: _searchController,
-                    decoration: InputDecoration(
+                    decoration: const InputDecoration(
                       hintText: 'Buscar dispositivos...',
                       hintStyle: TextStyle(color: Color(0xFF64748B)),
                       prefixIcon: Icon(Icons.search,
@@ -514,20 +618,20 @@ class _BeaconScannerPageState extends State<BeaconScannerPage> {
                     },
                   ),
                 ),
-                SizedBox(height: 16),
+                const SizedBox(height: 16),
                 Row(
                   children: [
                     Expanded(
                       child: Container(
                         decoration: BoxDecoration(
                           gradient: _isScanning
-                              ? LinearGradient(
+                              ? const LinearGradient(
                                   colors: [
                                     Color(0xFFEF4444),
                                     Color(0xFFDC2626)
                                   ],
                                 )
-                              : LinearGradient(
+                              : const LinearGradient(
                                   colors: [
                                     Color(0xFF0F172A),
                                     Color(0xFF334155)
@@ -537,10 +641,10 @@ class _BeaconScannerPageState extends State<BeaconScannerPage> {
                           boxShadow: [
                             BoxShadow(
                               color: (_isScanning
-                                      ? Color(0xFFEF4444)
-                                      : Color(0xFF0F172A))
+                                      ? const Color(0xFFEF4444)
+                                      : const Color(0xFF0F172A))
                                   .withOpacity(0.2),
-                              offset: Offset(0, 4),
+                              offset: const Offset(0, 4),
                               blurRadius: 12,
                             ),
                           ],
@@ -556,7 +660,7 @@ class _BeaconScannerPageState extends State<BeaconScannerPage> {
                           ),
                           label: Text(
                             _isScanning ? 'Detener' : 'Iniciar Escaneo',
-                            style: TextStyle(
+                            style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.w600,
                               fontSize: 16,
@@ -565,7 +669,7 @@ class _BeaconScannerPageState extends State<BeaconScannerPage> {
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.transparent,
                             shadowColor: Colors.transparent,
-                            padding: EdgeInsets.symmetric(vertical: 16),
+                            padding: const EdgeInsets.symmetric(vertical: 16),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(16),
                             ),
@@ -573,12 +677,13 @@ class _BeaconScannerPageState extends State<BeaconScannerPage> {
                         ),
                       ),
                     ),
-                    SizedBox(width: 12),
+                    const SizedBox(width: 12),
                     Container(
                       decoration: BoxDecoration(
-                        color: Color(0xFFF1F5F9),
+                        color: const Color(0xFFF1F5F9),
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Color(0xFFE2E8F0), width: 1),
+                        border: Border.all(
+                            color: const Color(0xFFE2E8F0), width: 1),
                       ),
                       child: ElevatedButton(
                         onPressed: () {
@@ -586,18 +691,18 @@ class _BeaconScannerPageState extends State<BeaconScannerPage> {
                             _devices.clear();
                           });
                         },
-                        child: Icon(
-                          Icons.clear_all,
-                          color: Color(0xFF64748B),
-                          size: 20,
-                        ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.transparent,
                           shadowColor: Colors.transparent,
-                          padding: EdgeInsets.all(16),
+                          padding: const EdgeInsets.all(16),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(16),
                           ),
+                        ),
+                        child: const Icon(
+                          Icons.clear_all,
+                          color: Color(0xFF64748B),
+                          size: 20,
                         ),
                       ),
                     ),
@@ -610,17 +715,17 @@ class _BeaconScannerPageState extends State<BeaconScannerPage> {
           // Indicador de escaneo y contador
           if (_isScanning || _filteredDevices.isNotEmpty)
             Container(
-              margin: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Color(0xFFE2E8F0), width: 1),
+                border: Border.all(color: const Color(0xFFE2E8F0), width: 1),
               ),
               child: Row(
                 children: [
                   if (_isScanning) ...[
-                    SizedBox(
+                    const SizedBox(
                       width: 16,
                       height: 16,
                       child: CircularProgressIndicator(
@@ -629,8 +734,8 @@ class _BeaconScannerPageState extends State<BeaconScannerPage> {
                             AlwaysStoppedAnimation<Color>(Color(0xFF0F172A)),
                       ),
                     ),
-                    SizedBox(width: 12),
-                    Text(
+                    const SizedBox(width: 12),
+                    const Text(
                       'Escaneando...',
                       style: TextStyle(
                         color: Color(0xFF0F172A),
@@ -638,13 +743,14 @@ class _BeaconScannerPageState extends State<BeaconScannerPage> {
                         fontSize: 14,
                       ),
                     ),
-                    Spacer(),
+                    const Spacer(),
                   ],
-                  Icon(Icons.devices_other, size: 16, color: Color(0xFF64748B)),
-                  SizedBox(width: 8),
+                  const Icon(Icons.devices_other,
+                      size: 16, color: Color(0xFF64748B)),
+                  const SizedBox(width: 8),
                   Text(
                     '${_filteredDevices.length} encontrado${_filteredDevices.length != 1 ? 's' : ''}',
-                    style: TextStyle(
+                    style: const TextStyle(
                       color: Color(0xFF64748B),
                       fontWeight: FontWeight.w500,
                       fontSize: 14,
@@ -666,7 +772,7 @@ class _BeaconScannerPageState extends State<BeaconScannerPage> {
                           size: 64,
                           color: Colors.grey[400],
                         ),
-                        SizedBox(height: 16),
+                        const SizedBox(height: 16),
                         Text(
                           _isScanning
                               ? 'Buscando dispositivos...'
@@ -677,7 +783,7 @@ class _BeaconScannerPageState extends State<BeaconScannerPage> {
                           ),
                         ),
                         if (!_isScanning) ...[
-                          SizedBox(height: 8),
+                          const SizedBox(height: 8),
                           Text(
                             'Presiona "Iniciar Escaneo" para buscar',
                             style: TextStyle(
@@ -689,7 +795,7 @@ class _BeaconScannerPageState extends State<BeaconScannerPage> {
                     ),
                   )
                 : ListView.builder(
-                    padding: EdgeInsets.symmetric(vertical: 8),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
                     itemCount: _filteredDevices.length,
                     itemBuilder: (context, index) {
                       return _buildDeviceCard(_filteredDevices[index]);
@@ -711,24 +817,26 @@ class _BeaconScannerPageState extends State<BeaconScannerPage> {
 
     if (isVerified) {
       if (device.name.contains('Holy-Shun')) {
-        primaryColor = Color(0xFF3B82F6); // Azul elegante
-        backgroundColor = Color(0xFFEFF6FF); // Fondo azul muy suave
+        primaryColor = const Color(0xFF3B82F6); // Azul elegante
+        backgroundColor = const Color(0xFFEFF6FF); // Fondo azul muy suave
       } else {
-        primaryColor = Color(0xFF10B981); // Verde elegante
-        backgroundColor = Color(0xFFECFDF5); // Fondo verde muy suave
+        primaryColor = const Color(0xFF10B981); // Verde elegante
+        backgroundColor = const Color(0xFFECFDF5); // Fondo verde muy suave
       }
     } else {
-      primaryColor = Color(0xFF64748B); // Gris elegante
-      backgroundColor = Color(0xFFF8FAFC); // Fondo gris muy suave
+      primaryColor = const Color(0xFF64748B); // Gris elegante
+      backgroundColor = const Color(0xFFF8FAFC); // Fondo gris muy suave
     }
 
     return Container(
-      margin: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       decoration: BoxDecoration(
         color: isVerified ? backgroundColor.withOpacity(0.3) : Colors.white,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: isVerified ? primaryColor.withOpacity(0.4) : Color(0xFFE2E8F0),
+          color: isVerified
+              ? primaryColor.withOpacity(0.4)
+              : const Color(0xFFE2E8F0),
           width: isVerified ? 2.5 : 1.5,
         ),
         boxShadow: [
@@ -749,7 +857,7 @@ class _BeaconScannerPageState extends State<BeaconScannerPage> {
             // Navegación a detalles
           },
           child: Padding(
-            padding: EdgeInsets.all(20),
+            padding: const EdgeInsets.all(20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -758,8 +866,8 @@ class _BeaconScannerPageState extends State<BeaconScannerPage> {
                   children: [
                     // Badge de estado
                     Container(
-                      padding:
-                          EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
                         color: backgroundColor,
                         borderRadius: BorderRadius.circular(8),
@@ -776,10 +884,10 @@ class _BeaconScannerPageState extends State<BeaconScannerPage> {
                       ),
                     ),
                     if (isVerified) ...[
-                      SizedBox(width: 8),
+                      const SizedBox(width: 8),
                       Container(
-                        padding:
-                            EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
                             colors: [
@@ -792,11 +900,11 @@ class _BeaconScannerPageState extends State<BeaconScannerPage> {
                             BoxShadow(
                               color: primaryColor.withOpacity(0.3),
                               blurRadius: 4,
-                              offset: Offset(0, 2),
+                              offset: const Offset(0, 2),
                             ),
                           ],
                         ),
-                        child: Row(
+                        child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(
@@ -818,11 +926,11 @@ class _BeaconScannerPageState extends State<BeaconScannerPage> {
                         ),
                       ),
                     ],
-                    Spacer(),
+                    const Spacer(),
                     // Badge RSSI
                     Container(
-                      padding:
-                          EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: [
@@ -835,22 +943,22 @@ class _BeaconScannerPageState extends State<BeaconScannerPage> {
                           BoxShadow(
                             color: _getRssiColor(device.rssi).withOpacity(0.3),
                             blurRadius: 4,
-                            offset: Offset(0, 2),
+                            offset: const Offset(0, 2),
                           ),
                         ],
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(
+                          const Icon(
                             Icons.signal_cellular_alt,
                             size: 14,
                             color: Colors.white,
                           ),
-                          SizedBox(width: 6),
+                          const SizedBox(width: 6),
                           Text(
                             '${device.rssi} dBm',
-                            style: TextStyle(
+                            style: const TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
                               color: Colors.white,
@@ -862,12 +970,12 @@ class _BeaconScannerPageState extends State<BeaconScannerPage> {
                   ],
                 ),
 
-                SizedBox(height: 16),
+                const SizedBox(height: 16),
 
                 // Nombre del dispositivo
                 Text(
                   device.name,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                     color: Color(0xFF1E293B),
@@ -875,7 +983,7 @@ class _BeaconScannerPageState extends State<BeaconScannerPage> {
                   ),
                 ),
 
-                SizedBox(height: 16),
+                const SizedBox(height: 16),
 
                 // Grid de información
                 Column(
@@ -889,7 +997,7 @@ class _BeaconScannerPageState extends State<BeaconScannerPage> {
                     ),
 
                     if (device.uuid != null) ...[
-                      SizedBox(height: 12),
+                      const SizedBox(height: 12),
                       _buildMinimalInfoRow(
                         icon: Icons.qr_code_2,
                         label: 'UUID',
@@ -900,7 +1008,7 @@ class _BeaconScannerPageState extends State<BeaconScannerPage> {
                     ],
 
                     if (device.major != null && device.minor != null) ...[
-                      SizedBox(height: 12),
+                      const SizedBox(height: 12),
                       Row(
                         children: [
                           Expanded(
@@ -912,7 +1020,7 @@ class _BeaconScannerPageState extends State<BeaconScannerPage> {
                               compact: true,
                             ),
                           ),
-                          SizedBox(width: 16),
+                          const SizedBox(width: 16),
                           Expanded(
                             child: _buildMinimalInfoRow(
                               icon: Icons.label,
@@ -927,7 +1035,7 @@ class _BeaconScannerPageState extends State<BeaconScannerPage> {
                     ],
 
                     if (device.txPower != null) ...[
-                      SizedBox(height: 12),
+                      const SizedBox(height: 12),
                       _buildMinimalInfoRow(
                         icon: Icons.wifi_tethering,
                         label: 'TX Power',
@@ -936,7 +1044,7 @@ class _BeaconScannerPageState extends State<BeaconScannerPage> {
                       ),
                     ],
 
-                    SizedBox(height: 12),
+                    const SizedBox(height: 12),
                     _buildMinimalInfoRow(
                       icon: Icons.schedule,
                       label: 'Visto',
@@ -975,7 +1083,7 @@ class _BeaconScannerPageState extends State<BeaconScannerPage> {
             color: primaryColor,
           ),
         ),
-        SizedBox(width: 12),
+        const SizedBox(width: 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -985,16 +1093,16 @@ class _BeaconScannerPageState extends State<BeaconScannerPage> {
                 style: TextStyle(
                   fontSize: compact ? 10 : 11,
                   fontWeight: FontWeight.w500,
-                  color: Color(0xFF64748B),
+                  color: const Color(0xFF64748B),
                 ),
               ),
-              SizedBox(height: 2),
+              const SizedBox(height: 2),
               Text(
                 value,
                 style: TextStyle(
                   fontSize: compact ? 13 : 14,
                   fontWeight: FontWeight.w600,
-                  color: Color(0xFF1E293B),
+                  color: const Color(0xFF1E293B),
                   fontFamily: isMonospace ? 'monospace' : null,
                 ),
               ),
@@ -1017,9 +1125,9 @@ class _BeaconScannerPageState extends State<BeaconScannerPage> {
   }
 
   Color _getRssiColor(int rssi) {
-    if (rssi > -50) return Color(0xFF10B981);
-    if (rssi > -70) return Color(0xFFEAB308);
-    return Color(0xFFEF4444);
+    if (rssi > -50) return const Color(0xFF10B981);
+    if (rssi > -70) return const Color(0xFFEAB308);
+    return const Color(0xFFEF4444);
   }
 
   int _signedInt8(int byte) => byte > 127 ? byte - 256 : byte;
