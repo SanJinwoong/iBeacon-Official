@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import '../models/beacon_models.dart';
 import '../models/beacon_whitelist.dart';

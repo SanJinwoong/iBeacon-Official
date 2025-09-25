@@ -1,9 +1,10 @@
+import 'dart:math' as math;
 import '../models/beacon_models.dart';
 
 /// Utility functions for beacon operations
 class BeaconUtils {
   /// Calculate distance estimate from RSSI and TX Power
-  /// 
+  ///
   /// Uses the standard formula for RSSI-based distance estimation:
   /// Distance = 10^((TX_Power - RSSI) / (10 * N))
   /// Where N is the path loss exponent (typically 2 for free space)
@@ -13,7 +14,7 @@ class BeaconUtils {
     double pathLossExponent = 2.0,
   }) {
     if (rssi == 0) return -1.0;
-    
+
     final ratio = rssi * 1.0 / txPower;
     if (ratio < 1.0) {
       return math.pow(ratio, 10).toDouble();
@@ -34,23 +35,22 @@ class BeaconUtils {
   /// Format UUID string consistently
   static String formatUuid(String uuid) {
     if (uuid.isEmpty) return uuid;
-    
+
     // Remove existing dashes and make uppercase
     final cleaned = uuid.replaceAll('-', '').toUpperCase();
-    
+
     // Add dashes in proper positions
     if (cleaned.length == 32) {
       return '${cleaned.substring(0, 8)}-${cleaned.substring(8, 12)}-${cleaned.substring(12, 16)}-${cleaned.substring(16, 20)}-${cleaned.substring(20, 32)}';
     }
-    
+
     return uuid; // Return original if not standard length
   }
 
   /// Check if UUID is valid format
   static bool isValidUuid(String uuid) {
     final pattern = RegExp(
-      r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
-    );
+        r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
     return pattern.hasMatch(uuid);
   }
 
@@ -86,13 +86,14 @@ class BeaconUtils {
   }
 
   /// Sort devices with Holy devices prioritized
-  static List<BeaconDevice> sortDevicesWithHolyPriority(List<BeaconDevice> devices) {
+  static List<BeaconDevice> sortDevicesWithHolyPriority(
+      List<BeaconDevice> devices) {
     final sorted = List<BeaconDevice>.from(devices);
     sorted.sort((a, b) {
       // Holy devices first
       if (a.isHolyDevice && !b.isHolyDevice) return -1;
       if (!a.isHolyDevice && b.isHolyDevice) return 1;
-      
+
       // Within same category, sort by RSSI (stronger first)
       return b.rssi.compareTo(a.rssi);
     });
@@ -100,12 +101,14 @@ class BeaconUtils {
   }
 
   /// Filter devices by minimum RSSI threshold
-  static List<BeaconDevice> filterByRssi(List<BeaconDevice> devices, int minRssi) {
+  static List<BeaconDevice> filterByRssi(
+      List<BeaconDevice> devices, int minRssi) {
     return devices.where((device) => device.rssi >= minRssi).toList();
   }
 
   /// Filter devices by maximum age (time since last seen)
-  static List<BeaconDevice> filterByAge(List<BeaconDevice> devices, Duration maxAge) {
+  static List<BeaconDevice> filterByAge(
+      List<BeaconDevice> devices, Duration maxAge) {
     final now = DateTime.now();
     return devices.where((device) {
       final age = now.difference(device.lastSeen);
@@ -114,13 +117,14 @@ class BeaconUtils {
   }
 
   /// Group devices by protocol
-  static Map<BeaconProtocol, List<BeaconDevice>> groupByProtocol(List<BeaconDevice> devices) {
+  static Map<BeaconProtocol, List<BeaconDevice>> groupByProtocol(
+      List<BeaconDevice> devices) {
     final grouped = <BeaconProtocol, List<BeaconDevice>>{};
-    
+
     for (final device in devices) {
       grouped.putIfAbsent(device.protocol, () => <BeaconDevice>[]).add(device);
     }
-    
+
     return grouped;
   }
 
@@ -157,12 +161,13 @@ class BeaconUtils {
     int verifiedCount = 0;
 
     for (final device in devices) {
-      protocolCounts[device.protocol] = (protocolCounts[device.protocol] ?? 0) + 1;
+      protocolCounts[device.protocol] =
+          (protocolCounts[device.protocol] ?? 0) + 1;
       totalRssi += device.rssi;
-      
+
       if (device.rssi > strongestRssi) strongestRssi = device.rssi;
       if (device.rssi < weakestRssi) weakestRssi = device.rssi;
-      
+
       if (device.isHolyDevice) holyCount++;
       if (device.verified) verifiedCount++;
     }
@@ -189,16 +194,19 @@ class BeaconUtils {
 
   /// Convert byte array to hex string
   static String bytesToHex(List<int> bytes) {
-    return bytes.map((byte) => byte.toRadixString(16).padLeft(2, '0')).join().toUpperCase();
+    return bytes
+        .map((byte) => byte.toRadixString(16).padLeft(2, '0'))
+        .join()
+        .toUpperCase();
   }
 }
 
 /// Beacon accuracy/proximity levels
 enum BeaconAccuracy {
   immediate, // Very close (< 1m)
-  near,      // Close (1-3m)
-  far,       // Far (3m+)
-  unknown,   // Cannot determine
+  near, // Close (1-3m)
+  far, // Far (3m+)
+  unknown, // Cannot determine
 }
 
 /// Statistics about a collection of beacon devices
@@ -243,6 +251,3 @@ class BeaconDeviceStats {
     return 'BeaconDeviceStats(total: $totalCount, holy: $holyCount, verified: $verifiedCount, avgRssi: ${averageRssi.toStringAsFixed(1)})';
   }
 }
-
-// Import math library for calculations
-import 'dart:math' as math;
