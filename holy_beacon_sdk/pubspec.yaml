@@ -30,7 +30,6 @@ flutter:
 topics:
   - beacon
   - ibeacon
-  - eddystone
   - bluetooth
   - ble
   - holy
