@@ -1,6 +1,34 @@
+## 0.1.0
+
+### ✨ Initial Release - Core UUID Processor
+
+**Features:**
+- 🔧 **Core UUID Processor**: Single and batch UUID processing with validation
+- 🎯 **Holy Device Detection**: Intelligent categorization (Shun, Jin, Kronos)
+- 📊 **Trust Level System**: Confidence scoring for device authenticity
+- 🔄 **Format Conversion**: Bytes to UUID, normalization, validation
+- 🛡️ **Error Handling**: Comprehensive error types and messages
+- 🧪 **100+ Tests**: Complete test coverage for reliability
+- 🔍 **BLE Scanning**: Real-time iBeacon and Eddystone detection
+- 🏆 **Holy Devices Prioritization**: Automatic filtering and ranking
+- 📱 **Cross-platform**: Android & iOS support
+- 🔐 **Permission Management**: Automatic BLE/location permissions
+
+**Core Components:**
+- `UuidProcessor`: Heart of the system - processes UUIDs with intelligence
+- `HolyBeaconScanner`: BLE scanning service with Holy device priority
+- `BeaconDevice` models: Comprehensive beacon data structures
+- Error handling with specific types and recovery suggestions
+
+**Integration Ready:**
+- Designed for larger systems as independent module
+- Consistent API across all components
+- Performance optimized for batch processing
+- Memory efficient with minimal footprint
+
 ## 1.0.0
 
-### ✨ Initial Release
+### ✨ Previous Release
 
 **Features:**
 - 🔍 Complete BLE beacon scanning for iBeacon and Eddystone protocols

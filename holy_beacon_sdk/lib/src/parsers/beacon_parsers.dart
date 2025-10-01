@@ -43,10 +43,10 @@ class BeaconParsers {
           int major = (manufacturerData[20] << 8) | manufacturerData[21];
           int minor = (manufacturerData[22] << 8) | manufacturerData[23];
 
-          // Extract TX Power (signed byte)
-          int txPower = manufacturerData.length > 24
-              ? manufacturerData[24].toSigned(8)
-              : -59;
+          // Extract TX Power (signed byte) - stored for future use
+          // int txPower = manufacturerData.length > 24
+          //     ? manufacturerData[24].toSigned(8)
+          //     : -59;
 
           return BeaconDevice(
             deviceId: deviceId,

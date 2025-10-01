@@ -1,7 +1,10 @@
 name: holy_beacon_sdk
-description: A Flutter SDK for scanning and detecting iBeacon and Eddystone beacons with Holy devices prioritization
-version: 1.0.0
+description: A comprehensive Flutter SDK for scanning and detecting iBeacon and Eddystone beacons with Holy devices prioritization. Designed for integration into larger systems with robust UUID processing capabilities.
+version: 0.1.0
 homepage: https://github.com/SanJinwoong/holy-beacon-sdk
+repository: https://github.com/SanJinwoong/iBeacon-Official
+issue_tracker: https://github.com/SanJinwoong/iBeacon-Official/issues
+documentation: https://github.com/SanJinwoong/holy-beacon-sdk/wiki
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
