@@ -1,3 +1,45 @@
+# Changelog
+
+## 0.1.1 - 2025-10-02
+
+### 🎛️ **MAJOR: Sistema Completamente Configurable**
+- **NEW**: `BeaconProfileManager` - Registro dinámico de cualquier UUID de beacon
+- **NEW**: Callbacks individuales `onBeaconDetected` para detecciones específicas
+- **NEW**: Almacenamiento persistente con `SharedPreferences`
+- **NEW**: APIs de gestión: `registerVerifiedBeacon()`, `unregisterVerifiedBeacon()`, `clearVerifiedBeacons()`
+- **BREAKING**: Eliminados UUIDs hardcodeados del parser
+- **ENHANCEMENT**: El SDK ahora es universal - no limitado a dispositivos Holy
+
+### ✨ **Nuevas APIs**
+```dart
+// Registrar tus propios beacons
+await profileManager.registerVerifiedBeacon('TU-UUID', 'Tu Beacon');
+
+// Callbacks individuales
+scanner.onBeaconDetected.listen((beacon) {
+  if (beacon.isVerifiedByProfile) {
+    print('¡Tu beacon detectado!');
+  }
+});
+```
+
+### 🔧 **Cambios Técnicos**
+- Added dependency: `shared_preferences: ^2.3.3`
+- Refactored `beacon_parsers.dart` to use dynamic profiles
+- Enhanced `HolyBeaconScanner` with profile management
+- Added comprehensive test suite for configurable system
+- Updated documentation and examples
+
+### 📁 **Nuevos Archivos**
+- `lib/src/models/beacon_profile_manager.dart`
+- `example/lib/configurable_example.dart`
+- `test/beacon_configuration_test.dart`
+
+### 🎯 **Impacto**
+- **Antes**: Solo detectaba UUIDs Holy hardcodeados
+- **Después**: Cualquier desarrollador puede registrar sus UUIDs
+- **Backward Compatible**: Código existente sigue funcionando
+
 ## 0.1.0
 
 ### ✨ Initial Release - Core UUID Processor

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import '../models/beacon_models.dart';
 import '../models/beacon_whitelist.dart';
+import '../models/beacon_profile_manager.dart';
 import '../parsers/beacon_parsers.dart';
 import '../utils/permission_manager.dart';
 
@@ -9,17 +10,28 @@ import '../utils/permission_manager.dart';
 ///
 /// This class provides comprehensive beacon scanning functionality with:
 /// - Cross-platform BLE scanning
-/// - Holy device prioritization
+/// - Dynamic beacon profile registration
 /// - Permission management
 /// - Configurable filtering
 /// - Real-time device updates
+/// - Persistent profile management
 ///
 /// Example usage:
 /// ```dart
 /// final scanner = HolyBeaconScanner();
-/// scanner.devices.listen((devices) {
-///   print('Found ${devices.length} devices');
+///
+/// // Register custom beacons
+/// await scanner.registerVerifiedBeacon(
+///   'A0B1C2D3-0000-1111-2222-333344445555',
+///   'My Enterprise Beacon',
+///   trustLevel: 8,
+/// );
+///
+/// // Listen for detected devices
+/// scanner.onBeaconDetected((device) {
+///   print('Found: ${device.name} - verified: ${device.verified}');
 /// });
+///
 /// await scanner.startScanning();
 /// ```
 class HolyBeaconScanner {
@@ -34,6 +46,7 @@ class HolyBeaconScanner {
   final _devicesController = StreamController<List<BeaconDevice>>.broadcast();
   final _statusController = StreamController<String>.broadcast();
   final _errorController = StreamController<HolyBeaconError>.broadcast();
+  final _beaconDetectedController = StreamController<BeaconDevice>.broadcast();
 
   final _devices = <String, BeaconDevice>{};
   BeaconWhitelist _whitelist = const BeaconWhitelist();
@@ -47,6 +60,9 @@ class HolyBeaconScanner {
 
   /// Stream of scanner errors
   Stream<HolyBeaconError> get errors => _errorController.stream;
+
+  /// Stream of individual beacon detections
+  Stream<BeaconDevice> get beaconDetected => _beaconDetectedController.stream;
 
   /// Whether the scanner is currently active
   bool get isScanning => _scanSubscription != null;
@@ -62,6 +78,7 @@ class HolyBeaconScanner {
     BeaconWhitelist? whitelist,
     BeaconScanConfig? config,
   }) async {
+    await BeaconParsers.initialize(); // Initialize profile manager
     _whitelist = whitelist ?? const BeaconWhitelist();
     _config = config ?? const BeaconScanConfig();
 
@@ -69,8 +86,83 @@ class HolyBeaconScanner {
       print('🔧 HolyBeaconScanner initialized');
       print('🔧 Whitelist: $_whitelist');
       print('🔧 Config: $_config');
+      print('🔧 Profiles loaded: ${BeaconParsers.getProfileStats()}');
     }
   }
+
+  // ========== NUEVAS APIs REQUERIDAS ==========
+
+  /// Register a verified beacon with custom metadata
+  Future<void> registerVerifiedBeacon(
+    String uuid,
+    String name, {
+    int trustLevel = 5,
+    Map<String, dynamic>? metadata,
+  }) async {
+    await BeaconParsers.registerVerifiedBeacon(
+      uuid,
+      name,
+      trustLevel: trustLevel,
+      metadata: metadata,
+    );
+
+    if (_config.enableDebugLogs) {
+      print('✅ Registered beacon: $name ($uuid) - trust: $trustLevel');
+    }
+  }
+
+  /// Unregister a verified beacon
+  Future<void> unregisterVerifiedBeacon(String uuid) async {
+    await BeaconParsers.unregisterVerifiedBeacon(uuid);
+
+    if (_config.enableDebugLogs) {
+      print('❌ Unregistered beacon: $uuid');
+    }
+  }
+
+  /// List all verified beacons
+  List<BeaconProfile> listVerifiedBeacons() {
+    return BeaconParsers.listVerifiedBeacons();
+  }
+
+  /// Clear all verified beacons (optionally keep defaults)
+  Future<void> clearVerifiedBeacons({bool keepDefaults = false}) async {
+    await BeaconParsers.clearVerifiedBeacons(keepDefaults: keepDefaults);
+
+    if (_config.enableDebugLogs) {
+      print('🧹 Cleared verified beacons (keepDefaults: $keepDefaults)');
+    }
+  }
+
+  /// Clear/disable default profiles (Holy devices)
+  Future<void> clearDefaultProfiles() async {
+    await BeaconParsers.clearDefaultProfiles();
+
+    if (_config.enableDebugLogs) {
+      print('🧹 Cleared default profiles');
+    }
+  }
+
+  /// Restore default profiles (Holy devices)
+  Future<void> restoreDefaultProfiles() async {
+    await BeaconParsers.restoreDefaultProfiles();
+
+    if (_config.enableDebugLogs) {
+      print('🔄 Restored default profiles');
+    }
+  }
+
+  /// Register callback for individual beacon detections
+  void onBeaconDetected(void Function(BeaconDevice) callback) {
+    beaconDetected.listen(callback);
+  }
+
+  /// Get statistics about registered profiles
+  Map<String, int> getProfileStats() {
+    return BeaconParsers.getProfileStats();
+  }
+
+  // ========== MÉTODOS EXISTENTES MEJORADOS ==========
 
   /// Request necessary permissions for beacon scanning
   Future<bool> requestPermissions() async {
@@ -164,8 +256,15 @@ class HolyBeaconScanner {
       );
       if (beacon != null) {
         detectedBeacons.add(beacon);
+
+        // Emit device individually for callback listeners
+        _beaconDetectedController.add(beacon);
+
         if (_config.enableDebugLogs) {
           print('📱 iBeacon detected: ${beacon.name} (${beacon.uuid})');
+          if (beacon.verified) {
+            print('⭐ Verified beacon: ${beacon.name}');
+          }
         }
       }
     }
@@ -180,8 +279,15 @@ class HolyBeaconScanner {
       );
       if (eddystoneBeacon != null) {
         detectedBeacons.add(eddystoneBeacon);
+
+        // Emit device individually for callback listeners
+        _beaconDetectedController.add(eddystoneBeacon);
+
         if (_config.enableDebugLogs) {
           print('🟦 Eddystone detected: ${eddystoneBeacon.name}');
+          if (eddystoneBeacon.verified) {
+            print('⭐ Verified Eddystone: ${eddystoneBeacon.name}');
+          }
         }
       }
     }
@@ -196,6 +302,9 @@ class HolyBeaconScanner {
         device.manufacturerData,
       );
       detectedBeacons.add(genericDevice);
+
+      // Emit device individually for callback listeners
+      _beaconDetectedController.add(genericDevice);
 
       if (_config.enableDebugLogs) {
         print('📶 Generic BLE detected: ${genericDevice.name}');
@@ -368,6 +477,7 @@ class HolyBeaconScanner {
     _devicesController.close();
     _statusController.close();
     _errorController.close();
+    _beaconDetectedController.close();
   }
 }
 

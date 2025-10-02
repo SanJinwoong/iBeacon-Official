@@ -1,20 +1,72 @@
 import 'dart:typed_data';
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import '../models/beacon_models.dart';
+import '../models/beacon_profile_manager.dart';
 
-/// Parser for various beacon protocols and formats
+/// Parser for various beacon protocols and formats with dynamic profile support
 class BeaconParsers {
-  // Known UUIDs for Holy devices
-  static const String HOLY_SHUN_UUID = 'FDA50693-A4E2-4FB1-AFCF-C6EB07647825';
-  static const String HOLY_JIN_UUID = 'E2C56DB5-DFFB-48D2-B060-D0F5A7100000';
-  static const String KRONOS_BLAZE_UUID =
-      'F7826DA6-4FA2-4E98-8024-BC5B71E0893E';
+  static final BeaconProfileManager _profileManager = BeaconProfileManager();
 
-  static const List<String> KNOWN_UUIDS = [
-    HOLY_SHUN_UUID,
-    HOLY_JIN_UUID,
-    KRONOS_BLAZE_UUID,
-  ];
+  /// Initialize parser with profile manager
+  static Future<void> initialize() async {
+    await _profileManager.initialize();
+  }
+
+  /// Registrar un beacon verificado (delegación al profile manager)
+  static Future<void> registerVerifiedBeacon(
+    String uuid,
+    String name, {
+    int trustLevel = 5,
+    Map<String, dynamic>? metadata,
+  }) async {
+    await _profileManager.registerVerifiedBeacon(
+      uuid,
+      name,
+      trustLevel: trustLevel,
+      metadata: metadata,
+    );
+  }
+
+  /// Desregistrar un beacon verificado
+  static Future<void> unregisterVerifiedBeacon(String uuid) async {
+    await _profileManager.unregisterVerifiedBeacon(uuid);
+  }
+
+  /// Listar beacons verificados
+  static List<BeaconProfile> listVerifiedBeacons() {
+    return _profileManager.listVerifiedBeacons();
+  }
+
+  /// Limpiar todos los beacons verificados
+  static Future<void> clearVerifiedBeacons({bool keepDefaults = false}) async {
+    await _profileManager.clearVerifiedBeacons(keepDefaults: keepDefaults);
+  }
+
+  /// Limpiar perfiles por defecto
+  static Future<void> clearDefaultProfiles() async {
+    await _profileManager.clearDefaultProfiles();
+  }
+
+  /// Restaurar perfiles por defecto
+  static Future<void> restoreDefaultProfiles() async {
+    await _profileManager.restoreDefaultProfiles();
+  }
+
+  /// Verificar si un UUID está registrado
+  static bool isVerifiedBeacon(String uuid) {
+    return _profileManager.isVerifiedBeacon(uuid);
+  }
+
+  /// Obtener perfil por UUID
+  static BeaconProfile? getProfile(String uuid) {
+    return _profileManager.getProfile(uuid);
+  }
+
+  /// Obtener UUIDs conocidos (compatibilidad)
+  static List<String> get knownUuids => _profileManager.getKnownUuids();
+
+  /// Estadísticas de perfiles
+  static Map<String, int> getProfileStats() => _profileManager.getStats();
 
   /// Attempts to parse manufacturer data as iBeacon
   static BeaconDevice? tryParseIBeacon(
@@ -43,21 +95,23 @@ class BeaconParsers {
           int major = (manufacturerData[20] << 8) | manufacturerData[21];
           int minor = (manufacturerData[22] << 8) | manufacturerData[23];
 
-          // Extract TX Power (signed byte) - stored for future use
-          // int txPower = manufacturerData.length > 24
-          //     ? manufacturerData[24].toSigned(8)
-          //     : -59;
+          // Get profile if registered
+          final profile = _profileManager.getProfile(uuid);
+          final isVerified = profile?.verified ?? false;
+          final deviceName = profile?.displayName.isNotEmpty == true
+              ? profile!.displayName
+              : (name.isNotEmpty ? name : 'iBeacon');
 
           return BeaconDevice(
             deviceId: deviceId,
-            name: name.isNotEmpty ? name : _getDeviceNameFromUuid(uuid),
+            name: deviceName,
             rssi: rssi,
             uuid: uuid,
             major: major,
             minor: minor,
             protocol: BeaconProtocol.ibeacon,
             lastSeen: now,
-            verified: true,
+            verified: isVerified,
           );
         }
       }
@@ -203,10 +257,12 @@ class BeaconParsers {
       }
     }
 
-    // Check if the name contains "Holy" or other known patterns
-    bool isKnownDevice = name.toLowerCase().contains('holy') ||
-        name.toLowerCase().contains('kronos') ||
-        name.toLowerCase().contains('blaze');
+    // Check if the name contains registered patterns or is verified
+    final profile = _profileManager.getProfile(uuid);
+    bool isKnownDevice = profile?.verified ??
+        (name.toLowerCase().contains('holy') ||
+            name.toLowerCase().contains('kronos') ||
+            name.toLowerCase().contains('blaze'));
 
     return BeaconDevice(
       deviceId: deviceId,
@@ -242,16 +298,13 @@ class BeaconParsers {
 
   /// Get friendly device name from UUID
   static String _getDeviceNameFromUuid(String uuid) {
-    switch (uuid.toUpperCase()) {
-      case HOLY_SHUN_UUID:
-        return 'Holy-Shun';
-      case HOLY_JIN_UUID:
-        return 'Holy-IOT Jin';
-      case KRONOS_BLAZE_UUID:
-        return 'Kronos Blaze BLE';
-      default:
-        return 'iBeacon';
+    final profile = _profileManager.getProfile(uuid);
+    if (profile != null) {
+      return profile.displayName;
     }
+
+    // Fallback for unregistered devices
+    return 'iBeacon';
   }
 
   /// Create UUID from Eddystone namespace and instance
@@ -300,11 +353,20 @@ class BeaconParsers {
     return url.toString();
   }
 
-  /// Check if a device ID represents a Holy device
+  /// Check if a device ID represents a registered device
   static bool isHolyDevice(String deviceId, String name) {
-    return name.toLowerCase().contains('holy') ||
-        name.toLowerCase().contains('kronos') ||
-        name.toLowerCase().contains('blaze');
+    // Check by name patterns (legacy compatibility)
+    final nameLower = name.toLowerCase();
+    if (nameLower.contains('holy') ||
+        nameLower.contains('kronos') ||
+        nameLower.contains('blaze')) {
+      return true;
+    }
+
+    // Check if device ID matches any registered UUIDs
+    return _profileManager.getKnownUuids().any((uuid) =>
+        deviceId.toLowerCase().contains(uuid.toLowerCase()) ||
+        uuid.toLowerCase().contains(deviceId.toLowerCase()));
   }
 
   /// Validate UUID format

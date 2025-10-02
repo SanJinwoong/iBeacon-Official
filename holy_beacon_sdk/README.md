@@ -5,31 +5,30 @@
 [![iOS](https://img.shields.io/badge/Platform-iOS-blue.svg)](https://developer.apple.com/ios/)
 [![Flutter](https://img.shields.io/badge/Framework-Flutter-02569B.svg)](https://flutter.dev)
 
-Un SDK completo y multiplataforma para el procesamiento de UUIDs y detección de dispositivos Holy Beacon. Diseñado para integrarse perfectamente en sistemas más grandes como un módulo independiente.
+Un SDK completo y multiplataforma para el escaneo y detección de beacons iBeacon/Eddystone totalmente configurable. **No está limitado a dispositivos Holy** - cualquier desarrollador puede registrar sus propios UUIDs de beacon y detectarlos dinámicamente.
 
-> Nota: Para mantener el paquete ligero en pub.dev, los directorios `android_module/` y `ios_module/` (implementaciones nativas standalone) y artefactos de build no se incluyen en el paquete publicado. Siguen disponibles en el repositorio para referencia avanzada.
+> **¡Completamente Configurable!** 🎛️ Este SDK permite a cualquier desarrollador registrar sus propios UUIDs de beacon, no solo los dispositivos Holy predeterminados. Incluye almacenamiento persistente y APIs de gestión completas.
 
 ## 🎯 **Características Principales**
 
-### ✨ **Core UUID Processor**
-- **Procesamiento individual y en lotes** de UUIDs
-- **Validación y normalización** automática de formatos
-- **Detección inteligente** de dispositivos Holy
-- **Categorización y confianza** por niveles de trust
-- **Conversión de formatos** (bytes, string, normalización)
-- **Manejo robusto de errores** con tipos específicos
+### ✨ **Sistema de Configuración Dinámico** 
+- **Registro dinámico de UUIDs**: Registra cualquier UUID de beacon que desees detectar
+- **Almacenamiento persistente**: Los perfiles registrados se mantienen entre sesiones
+- **APIs de gestión completas**: CRUD para perfiles de beacon con metadatos
+- **Callbacks individuales**: Recibe notificaciones cuando se detecte un beacon específico
+- **No limitado a Holy**: Funciona con cualquier beacon iBeacon/Eddystone
 
 ### 🔄 **Multiplataforma**
-- **Flutter/Dart**: Librería completa con escaneo BLE
-- **Android Nativo**: Módulo AAR independiente  
-- **iOS Nativo**: Swift Package Manager
+- **Flutter/Dart**: Librería completa con escaneo BLE configurable
+- **Android**: Soporte nativo completo
+- **iOS**: Soporte nativo completo  
 - **Integración**: Listo para sistemas más grandes
 
-### 📊 **Inteligencia de Dispositivos**
-- **Holy Shun**: Trust level 10 - `FDA50693-A4E2-4FB1-AFCF-C6EB07647825`
-- **Holy Jin**: Trust level 10 - `E2C56DB5-DFFB-48D2-B060-D0F5A7100000`  
-- **Kronos Blaze**: Trust level 9 - `F7826DA6-4FA2-4E98-8024-BC5B71E0893E`
-- **Dispositivos genéricos**: Trust level 1
+### 📊 **Compatibilidad Universal**
+- **UUIDs Personalizados**: Registra cualquier UUID que necesites detectar
+- **Perfiles Predeterminados**: Incluye algunos dispositivos Holy como ejemplos
+- **Metadatos**: Asocia nombres y descripciones a tus beacons
+- **Gestión Completa**: Agregar, eliminar, limpiar perfiles dinámicamente
 
 ## 🚀 **Instalación**
 
@@ -38,6 +37,7 @@ Un SDK completo y multiplataforma para el procesamiento de UUIDs y detección de
 ```yaml
 dependencies:
   holy_beacon_sdk: ^0.1.0
+  shared_preferences: ^2.3.3  # Requerido para persistencia
 ```
 
 ```bash
@@ -63,6 +63,71 @@ dependencies: [
 ```
 
 O en Xcode: **File** → **Add Package Dependencies** → `https://github.com/SanJinwoong/holy-beacon-sdk`
+
+## 🎛️ **Configuración Dinámica (Nuevo)**
+
+### **¡El SDK es totalmente configurable para cualquier desarrollador!**
+
+#### 📝 **Registrar tus propios UUIDs de beacon**
+```dart
+import 'package:holy_beacon_sdk/holy_beacon_sdk.dart';
+
+void main() async {
+  final scanner = HolyBeaconScanner();
+  final profileManager = BeaconProfileManager();
+
+  // Registrar tu propio beacon personalizado - ¡cualquier UUID!
+  await profileManager.registerVerifiedBeacon(
+    'AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE',
+    'Mi Beacon Personalizado'
+  );
+
+  // También registrar en el scanner para detección inmediata
+  await scanner.registerVerifiedBeacon(
+    'AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE',
+    'Mi Beacon Personalizado'
+  );
+
+  // Escuchar detecciones de TU beacon específico
+  scanner.onBeaconDetected.listen((beacon) {
+    if (beacon.isVerifiedByProfile) {
+      print('¡Mi beacon detectado! ${beacon.name}');
+      print('UUID: ${beacon.uuid}');
+      print('RSSI: ${beacon.rssi}');
+    }
+  });
+
+  // Iniciar escaneo
+  await scanner.startScanning();
+}
+```
+
+#### 🔧 **Gestión Completa de Perfiles**
+```dart
+// Obtener todos los perfiles registrados
+final profiles = await profileManager.getRegisteredProfiles();
+print('Tienes ${profiles.length} beacons registrados');
+
+// Eliminar un beacon específico
+await profileManager.unregisterVerifiedBeacon('tu-uuid-aqui');
+
+// Limpiar todos los perfiles (incluidos los predeterminados)
+await profileManager.clearDefaultProfiles();
+```
+
+#### 💾 **Almacenamiento Persistente**
+Los perfiles registrados se guardan automáticamente usando `SharedPreferences` y se restauran entre sesiones de la app.
+
+#### 🔔 **Callbacks Individuales**
+```dart
+// Recibe notificaciones cada vez que se detecte un beacon específico
+scanner.onBeaconDetected.listen((beacon) {
+  print('Beacon detectado: ${beacon.name}');
+  print('Es uno de mis beacons registrados: ${beacon.isVerifiedByProfile}');
+});
+```
+
+> **🎯 Nota Importante**: Este SDK no está limitado a dispositivos Holy. Los UUIDs Holy incluidos son solo ejemplos predeterminados. Puedes registrar cualquier UUID de beacon que necesites detectar.
 
 ## 📖 **Uso Básico**
 

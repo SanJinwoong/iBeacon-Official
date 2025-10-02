@@ -36,6 +36,9 @@ export 'src/core/uuid_processor.dart';
 export 'src/models/beacon_models.dart';
 export 'src/models/beacon_whitelist.dart';
 
+// Profile management
+export 'src/models/beacon_profile_manager.dart';
+
 // Parsers
 export 'src/parsers/beacon_parsers.dart';
 
