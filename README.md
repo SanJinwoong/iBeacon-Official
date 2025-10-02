@@ -91,16 +91,6 @@ La aplicación presenta:
 4. Push a la rama (`git push origin feature/AmazingFeature`)
 5. Abre un Pull Request
 
-## 📄 Licencia
 
-Este proyecto está bajo la Licencia MIT. Ver el archivo [LICENSE](LICENSE) para más detalles.
 
-## 👨‍💻 Autor
 
-- **Tu Nombre** - *Desarrollo inicial* - [tu-usuario](https://github.com/tu-usuario)
-
-## 🙏 Agradecimientos
-
-- Flutter team por el increíble framework
-- Comunidad de desarrolladores Flutter
-- Contribuidores de los paquetes utilizados
