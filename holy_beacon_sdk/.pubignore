@@ -1,0 +1,9 @@
+build/
+android_module/
+ios_module/
+integration_examples/
+README_NEW.md
+**/.DS_Store
+.vscode/
+example/build/
+coverage/

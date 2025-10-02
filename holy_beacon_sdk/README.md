@@ -7,6 +7,8 @@
 
 Un SDK completo y multiplataforma para el procesamiento de UUIDs y detección de dispositivos Holy Beacon. Diseñado para integrarse perfectamente en sistemas más grandes como un módulo independiente.
 
+> Nota: Para mantener el paquete ligero en pub.dev, los directorios `android_module/` y `ios_module/` (implementaciones nativas standalone) y artefactos de build no se incluyen en el paquete publicado. Siguen disponibles en el repositorio para referencia avanzada.
+
 ## 🎯 **Características Principales**
 
 ### ✨ **Core UUID Processor**

@@ -91,7 +91,9 @@ void main() {
       expect(whitelist.isAllowed(holyDevice), true);
       expect(whitelist.isAllowed(genericDevice), false);
     });
-  });
+  },
+      skip:
+          'Requires BLE hardware / platform channels; skipped in CI and pub.dev packaging.');
 
   group('BeaconParsers Tests', () {
     test('should validate UUID formats correctly', () {
