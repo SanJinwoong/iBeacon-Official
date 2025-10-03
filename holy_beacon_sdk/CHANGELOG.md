@@ -1,6 +1,26 @@
 # Changelog
 
-## 0.1.2 - 2025-10-02
+## [0.1.3] - 2024-12-19
+
+### 🔧 Documentation
+- **Fixed GitHub repository links**: Corrected all broken URLs in pub.dev
+- **Updated homepage**: Now points to correct GitHub repository structure  
+- **Fixed documentation links**: No more 404 errors when accessing from pub.dev
+- **Added comprehensive repository documentation**: CONTRIBUTING.md, enhanced README.md
+
+### 📚 Repository Structure
+- **Repository**: https://github.com/SanJinwoong/iBeacon-Official
+- **Homepage**: https://github.com/SanJinwoong/iBeacon-Official/tree/feature/modulo-externo/holy_beacon_sdk
+- **Documentation**: https://github.com/SanJinwoong/iBeacon-Official/blob/feature/modulo-externo/holy_beacon_sdk/README.md
+- **Issues**: https://github.com/SanJinwoong/iBeacon-Official/issues
+
+### ✅ No Functional Changes
+- All beacon detection functionality remains identical
+- BeaconProfileManager API unchanged
+- HolyBeaconScanner behavior preserved
+- Full backward compatibility maintained
+
+## [0.1.2] - 2024-12-19
 
 ### 🔧 **Bug Fixes & Polish**
 - **FIXED**: Corrected method calls in `configurable_example.dart`
