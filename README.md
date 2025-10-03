@@ -1,9 +1,34 @@
-# 📡 iBeacon Scanner Flutter App
+# 📡 iBeacon Official Repository
 
-Una aplicación Flutter moderna para escanear y detectar dispositivos iBeacon con diseño minimalista y priorización de dispositivos Holy.
+Repositorio oficial para implementaciones de detección de iBeacons y Beacons Eddystone.
+
+## 📦 Proyectos
+
+### 🔥 Holy Beacon SDK
+**SDK configurable para Flutter** - Ahora disponible en [pub.dev](https://pub.dev/packages/holy_beacon_sdk)
+
+- **Versión actual**: v0.1.2
+- **Ubicación**: `/holy_beacon_sdk/`
+- **Pub.dev**: [holy_beacon_sdk](https://pub.dev/packages/holy_beacon_sdk)
+
+```yaml
+dependencies:
+  holy_beacon_sdk: ^0.1.2
+```
+
+### 📱 iBeacon Scanner App
+Aplicación Flutter moderna para escanear y detectar dispositivos iBeacon con diseño minimalista y priorización de dispositivos Holy.
 
 ## ✨ Características
 
+### Holy Beacon SDK:
+- ✅ **Totalmente configurable**: No limitado a dispositivos Holy específicos
+- ✅ **Gestión persistente**: Registra cualquier UUID de beacon
+- ✅ **Stream reactivo**: Callbacks en tiempo real para detecciones
+- ✅ **Compatibilidad completa**: Android/iOS con Flutter Reactive BLE
+- ✅ **APIs flexibles**: registerVerifiedBeacon, unregisterVerifiedBeacon, etc.
+
+### iBeacon Scanner App:
 - **Escaneo BLE en tiempo real**: Detecta automáticamente dispositivos iBeacon cercanos
 - **Priorización de dispositivos Holy**: Los dispositivos Holy-IOT aparecen siempre al inicio de la lista
 - **Interfaz minimalista**: Diseño elegante con Material 3 y colores modernos

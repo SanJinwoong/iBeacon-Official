@@ -338,8 +338,9 @@ class _BeaconConfigurationScreenState extends State<BeaconConfigurationScreen> {
                             profile.uuid.toLowerCase());
 
                         return Card(
-                          color:
-                              isDetected ? Colors.green.withValues(alpha: 0.1) : null,
+                          color: isDetected
+                              ? Colors.green.withValues(alpha: 0.1)
+                              : null,
                           child: ListTile(
                             leading: Icon(
                               isDetected
