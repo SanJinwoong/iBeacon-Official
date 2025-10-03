@@ -58,7 +58,7 @@ class _BeaconConfigurationScreenState extends State<BeaconConfigurationScreen> {
   }
 
   void _loadRegisteredProfiles() async {
-    final profiles = await _profileManager.getRegisteredProfiles();
+    final profiles = _profileManager.listVerifiedBeacons();
     setState(() {
       _registeredProfiles = profiles;
     });
@@ -66,14 +66,14 @@ class _BeaconConfigurationScreenState extends State<BeaconConfigurationScreen> {
 
   void _setupBeaconDetection() {
     // Escuchar detecciones individuales de beacon
-    _scanner.onBeaconDetected.listen((beacon) {
+    _scanner.beaconDetected.listen((beacon) {
       setState(() {
         _lastDetectedBeacon =
             'UUID: ${beacon.uuid}\nNombre: ${beacon.name}\nRSSI: ${beacon.rssi}';
       });
 
       // Mostrar notificación cuando se detecte un beacon registrado
-      if (beacon.isVerifiedByProfile) {
+      if (_profileManager.isVerifiedBeacon(beacon.uuid)) {
         _showBeaconDetectedSnackBar(beacon);
       }
     });
@@ -281,8 +281,8 @@ class _BeaconConfigurationScreenState extends State<BeaconConfigurationScreen> {
                           label:
                               Text(_isScanning ? 'Escaneando...' : 'Detenido'),
                           backgroundColor: _isScanning
-                              ? Colors.green.withOpacity(0.2)
-                              : Colors.grey.withOpacity(0.2),
+                              ? Colors.green.withValues(alpha: 0.2)
+                              : Colors.grey.withValues(alpha: 0.2),
                         ),
                       ],
                     ),
@@ -339,7 +339,7 @@ class _BeaconConfigurationScreenState extends State<BeaconConfigurationScreen> {
 
                         return Card(
                           color:
-                              isDetected ? Colors.green.withOpacity(0.1) : null,
+                              isDetected ? Colors.green.withValues(alpha: 0.1) : null,
                           child: ListTile(
                             leading: Icon(
                               isDetected
@@ -347,7 +347,7 @@ class _BeaconConfigurationScreenState extends State<BeaconConfigurationScreen> {
                                   : Icons.bluetooth,
                               color: isDetected ? Colors.green : Colors.grey,
                             ),
-                            title: Text(profile.name),
+                            title: Text(profile.displayName),
                             subtitle: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
